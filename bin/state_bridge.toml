@@ -1,0 +1,33 @@
+
+[canonical_tree]
+# Address of the WorldIDIdentityManager contract on L1
+address = "0x928a514350A403e2f5e3288C102f6B1CCABeb37C"
+# RPC endpoint
+provider.rpc_endpoint = ""
+# Requests per second throttle
+provider.throttle = 150
+# Blockscanner window size; the maximum number of blocks to query at a time
+window_size = 10000
+
+
+# Optimism
+[state_bridge.optimism]
+# Address of the state bridge contract on L1
+state_bridge = "0x13CaB5132a5B88078E1CddC316434374c4dd85c5"
+# Address of the WorldID contract on L2
+bridged_world_id = "0xf07d3efadD82A1F0b4C5Cc3476806d9a170147Ba"
+provider.rpc_endpoint = ""
+# Minimum time between `propagateRoot()` transactions
+relaying_period_seconds = 1800
+
+
+# Base
+[state_bridge.base]
+state_bridge = "0x9d9a4D075510eEBd66e46799db403C23A2240B20"
+bridged_world_id = "0x163b09b4fE21177c455D850BD815B6D583732432"
+provider.rpc_endpoint = ""
+relaying_period_seconds = 1800
+
+
+# Optional max gas price to use when sending `propagateRoot()` txs
+# max_gas_price = 7000000000
