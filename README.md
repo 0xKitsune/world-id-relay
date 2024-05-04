@@ -1,7 +1,3 @@
-# state-bridge-relay
-
-TODO: description
-
 ## State Bridge Relay
 
 The `state-bridge-relay` is responsible for listening to new roots from the `WorldIdIdentityManager` and propagating them various L2s specified within the configuration file. To successfully propagate roots to a target L2, you will need a `StateBridge` contract deployed on L1, a `BridgedWorldID` contract deployed on the target L2 and a cross chain messaging protocol to send the root from L1 to the L2. For a detailed walkthrough on how to set up and deploy the necessary components, you can [read more here](https://worldcoin.org/blog/announcements/new-state-bridge-update-enables-permissionless-integration-world-id).
@@ -31,3 +27,9 @@ Options:
 ```
 state-bridge-service --config bin/config/state_bridge.toml -p <PRIVATE_KEY>
 ```
+
+
+## ------------------------------------
+## Tests and Docs are still being written 🏗️.
+Tests are still being written, assume bugs until tested. If you would like to help contribute on the tests or docs, feel free to open up an issue or make a PR.
+## ------------------------------------
