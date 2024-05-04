@@ -39,8 +39,6 @@ struct Opts {
     datadog: bool,
 }
 
-const SERVICE_NAME: &str = "state-bridge-relay";
-
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let opts = Opts::parse();
