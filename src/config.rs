@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use ethers::types::{Address, U256};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 pub const CONFIG_PREFIX: &str = "WLD";
@@ -89,7 +89,6 @@ pub struct MetricsConfig {
 }
 
 mod default {
-    use super::*;
 
     pub fn window_size() -> u64 {
         5000
@@ -114,18 +113,5 @@ mod map_vec {
         let v: BTreeMap<String, T> = Deserialize::deserialize(deserializer)?;
 
         Ok(v.into_values().collect())
-    }
-}
-
-fn deserialize_opt_u256<'de, D>(deserializer: D) -> Result<Option<U256>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = Option::<String>::deserialize(deserializer)?;
-    match s {
-        Some(value) => U256::from_dec_str(&value)
-            .map(Some)
-            .map_err(serde::de::Error::custom),
-        None => Ok(None),
     }
 }
