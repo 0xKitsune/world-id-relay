@@ -23,11 +23,6 @@ Options:
   -h, --help                       Print help
 ```
 
-#### Example Usage
-```
-world-id-relay --config bin/config/state_bridge.toml -p <PRIVATE_KEY>
-```
-
 
 ## ------------------------------------
 ## Tests and Docs are still being written 🏗️.
