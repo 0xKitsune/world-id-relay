@@ -8,6 +8,7 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use governor::Jitter;
 use opentelemetry::global::shutdown_tracer_provider;
+use opentelemetry_datadog::DatadogPropagator;
 use state_bridge_relay::config::ServiceConfig;
 use state_bridge_relay::state_bridge::{StateBridge, StateBridgeService};
 use std::path::PathBuf;
@@ -29,6 +30,8 @@ struct Opts {
     /// Path to the configuration file
     #[clap(short, long)]
     config: Option<PathBuf>,
+
+    // TODO: FIXME: update to use env arg as well if this is not provided, this can be optional
     #[clap(
         short,
         long,
@@ -46,6 +49,7 @@ async fn main() -> eyre::Result<()> {
     let config = ServiceConfig::load(opts.config.as_deref())?;
 
     let _tracing_shutdown_handle = if let Some(telemetry) = &config.telemetry {
+        opentelemetry::global::set_text_map_propagator(DatadogPropagator::new());
         let tracing_shutdown_handle = DatadogBattery::init(
             telemetry.traces_endpoint.as_deref(),
             &telemetry.service_name,

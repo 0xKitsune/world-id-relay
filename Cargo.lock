@@ -4931,6 +4931,7 @@ dependencies = [
  "hex",
  "metrics 0.21.1",
  "opentelemetry",
+ "opentelemetry-datadog",
  "rand",
  "reqwest",
  "ruint",
