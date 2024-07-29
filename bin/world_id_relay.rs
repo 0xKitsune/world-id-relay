@@ -38,8 +38,6 @@ struct Opts {
         help = "Private key for account used to send `propagateRoot()` txs"
     )]
     private_key: String,
-    #[clap(short, long, help = "Enable datadog backend for instrumentation")]
-    datadog: bool,
 }
 
 #[tokio::main]
@@ -76,6 +74,8 @@ async fn main() -> eyre::Result<()> {
 
         TracingShutdownHandle
     };
+
+    //TODO:
 
     let mut wallet = opts.private_key.parse::<LocalWallet>()?;
     let l1_middleware = initialize_l1_middleware(
