@@ -1,12 +1,18 @@
 use std::time::Duration;
 
 use alloy::{
+    consensus::{Transaction, TypedTransaction},
+    primitives::{Address, Bytes, B256},
     providers::{Provider, ProviderBuilder, RootProvider},
     rpc::types::TransactionReceipt,
-    transports::http::{Client, Http},
+    transports::{
+        http::{Client, Http},
+        TransportErrorKind,
+    },
 };
-use ethers::types::{transaction::eip2718::TypedTransaction, Address, Bytes, H256, U256};
+use ethers::providers::RpcError;
 use reqwest::StatusCode;
+use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -30,7 +36,7 @@ impl TxSitterCient {
         })
     }
 
-    pub async fn wait_for_tx_hash(&self, tx_id: String) -> Result<H256, TxSitterTransactionError> {
+    pub async fn wait_for_tx_hash(&self, tx_id: String) -> Result<B256, TxSitterTransactionError> {
         let client = reqwest::Client::new();
         let url = format!("{}{}", self.relay_endpoint, tx_id);
 
@@ -65,9 +71,9 @@ impl TxSitterCient {
 }
 
 impl TransactionRelay for TxSitterCient {
-    type Error = TxSitterTransactionError;
+    type Error = TxSitterError;
 
-    async fn send_transaction(&self, tx: TypedTransaction) -> Result<H256, Self::Error> {
+    async fn send_transaction(&self, tx: TypedTransaction) -> Result<B256, Self::Error> {
         let payload = &SendTxRequest::try_from(tx)?;
 
         let response = self
@@ -88,11 +94,17 @@ impl TransactionRelay for TxSitterCient {
             Err(TxSitterTransactionError::SendTransactionError(
                 response.status(),
             ))
+            .into()
         }
     }
 
-    async fn get_tx_receipt(&self, _tx_hash: H256) -> Result<TransactionReceipt, Self::Error> {
-        unimplemented!()
+    async fn get_transaction_receipt(
+        &self,
+        tx_hash: B256,
+    ) -> Result<Option<TransactionReceipt>, Self::Error> {
+        let transaction_receipt = self.rpc_provider.get_transaction_receipt(tx_hash).await?;
+
+        Ok(transaction_receipt)
     }
 }
 
@@ -116,11 +128,9 @@ pub enum TransactionPriority {
 #[serde(rename_all = "camelCase")]
 pub struct SendTxRequest {
     pub to: Address,
-    #[serde(with = "crate::relay::tx_sitter")]
     pub value: U256,
     #[serde(default)]
     pub data: Option<Bytes>,
-    #[serde(with = "crate::relay::tx_sitter")]
     pub gas_limit: U256,
     #[serde(default)]
     pub priority: TransactionPriority,
@@ -134,6 +144,10 @@ pub enum TxSitterError {
     TxSitterTransactionError(TxSitterTransactionError),
     #[error(transparent)]
     UrlParseError(#[from] url::ParseError),
+    #[error(transparent)]
+    RpcError(#[from] alloy::transports::RpcError<TransportErrorKind>),
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
 }
 
 #[derive(Error, Debug)]
@@ -150,30 +164,23 @@ pub enum TxSitterTransactionError {
     SendTransactionError(StatusCode),
     #[error("Get transaction status error")]
     GetTransactionStatusError(StatusCode),
-    #[error(transparent)]
-    ReqwestError(#[from] reqwest::Error),
 }
 
 impl TryFrom<TypedTransaction> for SendTxRequest {
     type Error = TxSitterTransactionError;
     fn try_from(tx: TypedTransaction) -> Result<Self, Self::Error> {
         let to = *tx
-            .to_addr()
+            .to()
+            .to()
             .ok_or(TxSitterTransactionError::ToAddressNotFound)?;
 
-        let data = tx
-            .data()
-            .ok_or(TxSitterTransactionError::ToAddressNotFound)?;
-
-        let gas_limit = *tx
-            .gas()
-            .ok_or(TxSitterTransactionError::ToAddressNotFound)?;
+        let data = Bytes::from(tx.input().clone());
 
         Ok(SendTxRequest {
             to,
-            value: U256::zero(),
-            data: Some(data.to_owned()),
-            gas_limit,
+            value: tx.value(),
+            data: Some(data),
+            gas_limit: U256::from(tx.gas_limit()),
             priority: TransactionPriority::Regular,
             tx_id: None,
         })
@@ -192,7 +199,7 @@ pub struct GetTxResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<BlockTxStatus>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tx_hash: Option<H256>,
+    pub tx_hash: Option<B256>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Copy, PartialEq, Eq)]
@@ -202,21 +209,4 @@ pub enum BlockTxStatus {
     Mined = 1,
     Finalized = 2,
     Unsent = 3,
-}
-
-pub fn serialize<S>(u256: &U256, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let s = u256.to_string();
-    serializer.serialize_str(&s)
-}
-
-pub fn deserialize<'de, D>(deserializer: D) -> Result<U256, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let s: &str = serde::Deserialize::deserialize(deserializer)?;
-    let u256 = U256::from_dec_str(s).map_err(serde::de::Error::custom)?;
-    Ok(u256)
 }
