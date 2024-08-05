@@ -36,7 +36,7 @@ impl TxSitterCient {
         })
     }
 
-    pub async fn wait_for_tx_hash(&self, tx_id: String) -> Result<B256, TxSitterTransactionError> {
+    pub async fn wait_for_tx_hash(&self, tx_id: String) -> Result<B256, TxSitterError> {
         let client = reqwest::Client::new();
         let url = format!("{}{}", self.relay_endpoint, tx_id);
 
@@ -62,8 +62,8 @@ impl TxSitterCient {
 
                 tokio::time::sleep(Duration::from_secs(3)).await;
             } else {
-                return Err(TxSitterTransactionError::GetTransactionStatusError(
-                    response.status(),
+                return Err(TxSitterError::TransactionError(
+                    TransactionError::GetTransactionStatusError(response.status()),
                 ));
             }
         }
@@ -74,7 +74,7 @@ impl TransactionRelay for TxSitterCient {
     type Error = TxSitterError;
 
     async fn send_transaction(&self, tx: TypedTransaction) -> Result<B256, Self::Error> {
-        let payload = &SendTxRequest::try_from(tx)?;
+        let payload = &SendTxRequest::try_from(tx).map_err(TxSitterError::TransactionError)?;
 
         let response = self
             .relay_client
@@ -91,10 +91,9 @@ impl TransactionRelay for TxSitterCient {
 
             Ok(tx_hash)
         } else {
-            Err(TxSitterTransactionError::SendTransactionError(
-                response.status(),
+            Err(TxSitterError::TransactionError(
+                TransactionError::SendTransactionError(response.status()),
             ))
-            .into()
         }
     }
 
@@ -141,7 +140,7 @@ pub struct SendTxRequest {
 #[derive(Error, Debug)]
 pub enum TxSitterError {
     #[error(transparent)]
-    TxSitterTransactionError(TxSitterTransactionError),
+    TransactionError(TransactionError),
     #[error(transparent)]
     UrlParseError(#[from] url::ParseError),
     #[error(transparent)]
@@ -151,7 +150,7 @@ pub enum TxSitterError {
 }
 
 #[derive(Error, Debug)]
-pub enum TxSitterTransactionError {
+pub enum TransactionError {
     #[error("To address not found.")]
     ToAddressNotFound,
     #[error("Data not found.")]
@@ -167,17 +166,16 @@ pub enum TxSitterTransactionError {
 }
 
 impl TryFrom<TypedTransaction> for SendTxRequest {
-    type Error = TxSitterTransactionError;
+    type Error = TransactionError;
     fn try_from(tx: TypedTransaction) -> Result<Self, Self::Error> {
-        let to = *tx
-            .to()
-            .to()
-            .ok_or(TxSitterTransactionError::ToAddressNotFound)?;
+        let tx_kind = tx.to();
 
-        let data = Bytes::from(tx.input().clone());
+        let to = tx_kind.to().ok_or(TransactionError::ToAddressNotFound)?;
+
+        let data = Bytes::from(tx.input().to_owned());
 
         Ok(SendTxRequest {
-            to,
+            to: to.clone(),
             value: tx.value(),
             data: Some(data),
             gas_limit: U256::from(tx.gas_limit()),

@@ -1,7 +1,8 @@
 use alloy::{consensus::TypedTransaction, primitives::B256, rpc::types::TransactionReceipt};
 
 pub mod tx_sitter;
-pub mod tx_sitter_aws;
+
+// TODO: probably update name
 pub mod wallet;
 
 pub trait TransactionRelay {
