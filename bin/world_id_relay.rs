@@ -30,14 +30,13 @@ struct Opts {
     /// Path to the configuration file
     #[clap(short, long)]
     config: Option<PathBuf>,
-
-    // TODO: FIXME: update to use env arg as well if this is not provided, this can be optional
-    #[clap(
-        short,
-        long,
-        help = "Private key for account used to send `propagateRoot()` txs"
-    )]
-    private_key: String,
+    // // TODO: FIXME: update to use env arg as well if this is not provided, this can be optional
+    // #[clap(
+    //     short,
+    //     long,
+    //     help = "Private key for account used to send `propagateRoot()` txs"
+    // )]
+    // private_key: String,
 }
 
 #[tokio::main]
@@ -46,48 +45,9 @@ async fn main() -> eyre::Result<()> {
 
     let config = ServiceConfig::load(opts.config.as_deref())?;
 
-    let _tracing_shutdown_handle = if let Some(telemetry) = &config.telemetry {
-        opentelemetry::global::set_text_map_propagator(DatadogPropagator::new());
-        let tracing_shutdown_handle = DatadogBattery::init(
-            telemetry.traces_endpoint.as_deref(),
-            &telemetry.service_name,
-            None,
-            true,
-        );
+    //TODO: init tracing
 
-        if let Some(metrics_config) = &telemetry.metrics {
-            StatsdBattery::init(
-                &metrics_config.host,
-                metrics_config.port,
-                metrics_config.queue_size,
-                metrics_config.buffer_size,
-                Some(&metrics_config.prefix),
-            )?;
-        }
-
-        tracing_shutdown_handle
-    } else {
-        tracing_subscriber::registry()
-            .with(tracing_subscriber::fmt::layer().pretty().compact())
-            .with(tracing_subscriber::EnvFilter::from_default_env())
-            .init();
-
-        TracingShutdownHandle
-    };
-
-    //TODO:
-
-    let mut wallet = opts.private_key.parse::<LocalWallet>()?;
-    let l1_middleware = initialize_l1_middleware(
-        &config.canonical_tree.provider.rpc_endpoint,
-        config.canonical_tree.provider.throttle,
-        wallet.address(),
-        config.max_gas_price,
-    )
-    .await?;
-
-    let chain_id = l1_middleware.get_chainid().await?.as_u64();
-    wallet = wallet.with_chain_id(chain_id);
+    //TODO: use a joinset instead
 
     let mut state_bridge_service =
         StateBridgeService::new(config.canonical_tree.address, l1_middleware.clone()).await?;
@@ -173,4 +133,35 @@ pub fn initialize_throttled_provider(
     );
 
     Ok(Provider::new(throttled_http_provider))
+}
+
+pub fn init_tracing(config: &ServiceConfig) {
+    let _tracing_shutdown_handle = if let Some(telemetry) = &config.telemetry {
+        opentelemetry::global::set_text_map_propagator(DatadogPropagator::new());
+        let tracing_shutdown_handle = DatadogBattery::init(
+            telemetry.traces_endpoint.as_deref(),
+            &telemetry.service_name,
+            None,
+            true,
+        );
+
+        if let Some(metrics_config) = &telemetry.metrics {
+            StatsdBattery::init(
+                &metrics_config.host,
+                metrics_config.port,
+                metrics_config.queue_size,
+                metrics_config.buffer_size,
+                Some(&metrics_config.prefix),
+            )?;
+        }
+
+        tracing_shutdown_handle
+    } else {
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer().pretty().compact())
+            .with(tracing_subscriber::EnvFilter::from_default_env())
+            .init();
+
+        TracingShutdownHandle
+    };
 }

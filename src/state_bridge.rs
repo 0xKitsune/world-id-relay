@@ -1,6 +1,11 @@
+use crate::abi::IWorldIDIdentityManager::IWorldIDIdentityManagerInstance;
 use crate::abi::{self, IBridgedWorldID, IWorldIDIdentityManager, TreeChangedFilter};
 use crate::error::StateBridgeError;
 use crate::transaction;
+use alloy::network::Network;
+use alloy::providers::Provider;
+use alloy::sol;
+use alloy::transports::Transport;
 use ethers::providers::Middleware;
 use ethers::signers::{LocalWallet, Signer};
 use ethers::types::H160;
@@ -14,6 +19,7 @@ use tokio::select;
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, Instant};
 use tracing::instrument;
+use IBridgedWorldID::IBridgedWorldIDInstance;
 
 pub type Hash = <PoseidonHash as Hasher>::Hash;
 
@@ -21,15 +27,11 @@ pub type Hash = <PoseidonHash as Hasher>::Hash;
 pub const BLOCK_CONFIRMATIONS: usize = 2;
 
 /// The `StateBridge` is responsible for monitoring root changes from the `WorldTree` on Layer 1, propagating the root to the target chain.
-pub struct StateBridge<L1M: Middleware + 'static, L2M: Middleware + 'static> {
-    // Address for the state bridge contract on layer 1
-    l1_state_bridge: H160,
-    // Wallet responsible for sending `propagateRoot` transactions
-    wallet: LocalWallet,
-    // Middleware to interact with layer 1
-    l1_middleware: Arc<L1M>,
+pub struct StateBridge<T: Transport + Clone, N: Network, P: Provider> {
+    //TODO: add state bridge instance
+    //TODO: add transaction Relay
     /// Interface for the `BridgedWorldID` contract on the target chain
-    pub l2_world_id: IBridgedWorldID<L2M>,
+    pub l2_world_id: IBridgedWorldIDInstance<T, N, P>,
     /// Minimum time between `propagateRoot()` transactions
     pub relaying_period: Duration,
 }
@@ -214,9 +216,9 @@ impl<L1M: Middleware + 'static, L2M: Middleware + 'static> StateBridge<L1M, L2M>
 }
 
 /// Monitors the world tree root for changes and propagates new roots to target Layer 2s
-pub struct StateBridgeService<L1M: Middleware + 'static, L2M: Middleware + 'static> {
+pub struct StateBridgeService<T: Transport, L1: Network, P: Provider, L2: Network> {
     /// Monitors `TreeChanged` events from `WorldIDIdentityManager` and broadcasts new roots to through the `root_tx`.
-    pub world_id_identity_manager: IWorldIDIdentityManager<L1M>,
+    pub world_id_identity_manager: IWorldIDIdentityManagerInstance<T, L1, P>,
     /// Vec of `StateBridge`, responsible for root propagation to target Layer 2s.
     pub state_bridges: Vec<StateBridge<L1M, L2M>>,
 }

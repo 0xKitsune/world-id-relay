@@ -1,23 +1,28 @@
-use ethers::middleware::contract::abigen;
+use alloy::sol;
 
-abigen!(
-    IWorldIDIdentityManager,
-    r#"[
-        function latestRoot() external returns (uint256)
-        event TreeChanged(uint256 indexed preRoot, uint8 indexed kind, uint256 indexed postRoot)
-    ]"#;
+sol! {
+    #[derive(Debug, PartialEq, Eq)]
+    #[sol(rpc)]
+    contract IBridgedWorldID {
+        function latestRoot() public view virtual returns (uint256);
+         event RootAdded(uint256 root, uint128 timestamp);
+        error NoRootsSeen();
+    }
 
-    IStateBridge,
-    r#"[
-        function propagateRoot() external
-    ]"#;
+    #[derive(Debug, PartialEq, Eq)]
+    #[sol(rpc)]
+    contract IStateBridge {
+        function propagateRoot() external;
+    }
 
-    IBridgedWorldID,
-    r#"[
-        event RootAdded(uint256 root, uint128 timestamp)
-        function latestRoot() public view virtual returns (uint256)
-        error NoRootsSeen()
-    ]"#,
-    event_derives(serde::Deserialize, serde::Serialize)
+}
 
-);
+// NOTE: we need two sol! macros because there are two `latestRoot` functions
+sol! {
+    #[derive(Debug, PartialEq, Eq)]
+    #[sol(rpc)]
+    contract IWorldIDIdentityManager {
+        function latestRoot() external returns (uint256);
+        event TreeChanged(uint256 indexed preRoot, uint8 indexed kind, uint256 indexed postRoot);
+    }
+}
