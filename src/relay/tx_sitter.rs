@@ -10,7 +10,6 @@ use alloy::{
         TransportErrorKind,
     },
 };
-use ethers::providers::RpcError;
 use reqwest::StatusCode;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
@@ -18,13 +17,13 @@ use thiserror::Error;
 
 use super::TransactionRelay;
 
-pub struct TxSitterCient {
+pub struct TxSitterClient {
     pub relay_endpoint: String,
     pub relay_client: reqwest::Client,
     pub rpc_provider: RootProvider<Http<Client>>,
 }
 
-impl TxSitterCient {
+impl TxSitterClient {
     pub fn new(relay_endpoint: String, rpc_endpoint: String) -> Result<Self, TxSitterError> {
         let relay_client = reqwest::Client::new();
 
@@ -70,7 +69,7 @@ impl TxSitterCient {
     }
 }
 
-impl TransactionRelay for TxSitterCient {
+impl TransactionRelay for TxSitterClient {
     type Error = TxSitterError;
 
     async fn send_transaction(&self, tx: TypedTransaction) -> Result<B256, Self::Error> {
